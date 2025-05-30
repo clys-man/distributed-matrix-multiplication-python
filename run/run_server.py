@@ -1,6 +1,6 @@
 from multiprocessing import Process
 
-from server import start_server
+from server.matrix_server import main
 
 SERVERS = [
     ("localhost", 5000),
@@ -13,7 +13,7 @@ SERVERS = [
 def run_all():
     processes = []
     for host, port in SERVERS:
-        p = Process(target=start_server, args=(host, port))
+        p = Process(target=main, args=(host, port))
         p.start()
         processes.append(p)
 
