@@ -48,10 +48,8 @@ class MatrixServer:
 
             print(f"[SERVIDOR] Dados recebidos de {addr}, enviando confirmação...")
 
-            # Envia confirmação de recebimento
             send_chunks(conn, serialize("ACK"))
 
-            # Aguarda sinal de início da computação
             print("[SERVIDOR] Aguardando sinal de início da computação...")
             start_signal = conn.recv(4096)
             signal = deserialize(start_signal)
@@ -60,8 +58,23 @@ class MatrixServer:
                 print("[SERVIDOR] Sinal de início recebido! Iniciando computação...")
                 start_time = time.time()
 
-                # Realiza o cálculo
-                result = np.dot(sub_A, B)
+                from concurrent.futures import ThreadPoolExecutor
+
+                def compute_row_chunk(args):
+                    row_chunk, B = args
+                    return np.dot(row_chunk, B)
+
+                num_threads = 4
+                chunks = np.array_split(sub_A, num_threads, axis=0)
+
+                with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                    results = list(
+                        executor.map(
+                            compute_row_chunk, [(chunk, B) for chunk in chunks]
+                        )
+                    )
+
+                result = np.vstack(results)
 
                 end_time = time.time()
                 print(
@@ -73,6 +86,7 @@ class MatrixServer:
                 # Envia resultado
                 send_chunks(conn, serialize(result))
                 print(f"[SERVIDOR] Resultado enviado para {addr}")
+
             else:
                 print(f"[SERVIDOR] Sinal inválido recebido: {signal}")
 
