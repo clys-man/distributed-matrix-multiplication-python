@@ -1,9 +1,10 @@
 import socket
 import threading
+import time
 
 import numpy as np
 
-from common.utils import deserialize, serialize
+from common.utils import deserialize, recv_chunks, send_chunks, serialize
 
 
 class MatrixServer:
@@ -19,7 +20,6 @@ class MatrixServer:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(5)
             self.running = True
-
             print(f"[SERVIDOR] Servidor iniciado em {self.host}:{self.port}")
             print("[SERVIDOR] Aguardando conexões...")
 
@@ -41,19 +41,53 @@ class MatrixServer:
     def handle_client(self, conn, addr):
         try:
             print(f"[SERVIDOR] Conexão estabelecida com {addr}")
-            data = conn.recv(8192)
+
+            # Recebe dados da submatriz
+            data = recv_chunks(conn)
             sub_A, B = deserialize(data)
-            result = np.dot(sub_A, B)
-            print(result)
-            conn.sendall(serialize(result))
+
+            print(f"[SERVIDOR] Dados recebidos de {addr}, enviando confirmação...")
+
+            # Envia confirmação de recebimento
+            send_chunks(conn, serialize("ACK"))
+
+            # Aguarda sinal de início da computação
+            print("[SERVIDOR] Aguardando sinal de início da computação...")
+            start_signal = conn.recv(4096)
+            signal = deserialize(start_signal)
+
+            if signal == "START":
+                print("[SERVIDOR] Sinal de início recebido! Iniciando computação...")
+                start_time = time.time()
+
+                # Realiza o cálculo
+                result = np.dot(sub_A, B)
+
+                end_time = time.time()
+                print(
+                    f"[SERVIDOR] Computação concluída em {end_time - start_time:.4f} segundos"
+                )
+                print("[SERVIDOR] Resultado:")
+                print(result)
+
+                # Envia resultado
+                send_chunks(conn, serialize(result))
+                print(f"[SERVIDOR] Resultado enviado para {addr}")
+            else:
+                print(f"[SERVIDOR] Sinal inválido recebido: {signal}")
+
         except Exception as e:
             print(f"[ERRO] Erro ao lidar com o cliente {addr}: {e}")
         finally:
             conn.close()
+            print(f"[SERVIDOR] Conexão com {addr} encerrada")
 
     def shutdown(self):
         self.running = False
-        self.server_socket.close()
+        try:
+            self.server_socket.close()
+        except:
+            pass
         print("[SERVIDOR] Servidor finalizado")
 
 
@@ -63,4 +97,11 @@ def main(host="localhost", port=5001):
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if len(sys.argv) == 3:
+        main(sys.argv[1], int(sys.argv[2]))
+    elif len(sys.argv) == 2:
+        main(port=int(sys.argv[1]))
+    else:
+        main()
