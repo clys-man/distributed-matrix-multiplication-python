@@ -2,15 +2,12 @@ from multiprocessing import Process
 
 from server.matrix_server import main
 
-SERVERS = [
-    ("localhost", 5000),
-    ("localhost", 5001),
-    ("localhost", 5002),
-    ("localhost", 5003),
-]
+TOTAL_SERVERS = 10
 
 
 def run_all():
+    SERVERS = [("localhost", 5000 + i) for i in range(TOTAL_SERVERS)]
+
     processes = []
     for host, port in SERVERS:
         p = Process(target=main, args=(host, port))
