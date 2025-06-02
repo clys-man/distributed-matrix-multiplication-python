@@ -1,6 +1,5 @@
 import socket
 import threading
-import time
 
 import numpy as np
 
@@ -59,19 +58,8 @@ class MatrixClient:
 
         sub_matrices = divide_matrix(A, len(self.servers))
 
-        print("[CLIENTE] Matriz A:")
-        print(A)
-        print("[CLIENTE] Matriz B:")
-        print(B)
-        print("[CLIENTE] Resultado esperado (A @ B):")
-        print(A @ B)
-
         threads = []
-        start_sync = time.time()
 
-        print("[CLIENTE] Iniciando distribuição e sincronização...")
-
-        # Cria e inicia threads para cada servidor
         for i in range(len(self.servers)):
             t = threading.Thread(
                 target=self.send_submatrix, args=(i, sub_matrices[i], B)
@@ -79,18 +67,9 @@ class MatrixClient:
             threads.append(t)
             t.start()
 
-        # Aguarda todas as threads terminarem
         for t in threads:
             t.join()
 
-        # Combina resultados
         C = np.vstack(self.results)
-        end_sync = time.time()
-
-        print("[CLIENTE] Matriz Resultante C = A × B:")
-        print(C)
-        print(
-            f"[TEMPO] Execução total (com sincronização): {end_sync - start_sync:.2f} segundos"
-        )
 
         return C
